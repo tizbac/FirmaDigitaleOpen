@@ -1,0 +1,109 @@
+name: Build and Package App
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, fedora-latest]
+
+    env:
+      APP_NAME: myapp
+      VERSION: 1.0.0
+      MAINTAINER: "Tiziano Bacocco <tizbac2@gmail.com>"
+      LICENSE: "GPLv3"
+      DESCRIPTION: "Firma Digitale Open"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system dependencies
+        run: |
+          if [[ "$RUNNER_OS" == "Linux" && "$ImageOS" == "ubuntu"* ]]; then
+            sudo apt-get update
+            sudo apt-get install -y python3-dev libffi-dev libssl-dev patchelf ruby ruby-dev build-essential rpm
+          else
+            sudo dnf install -y python3-devel libffi-devel openssl-devel ruby-devel rpm-build gcc make
+          fi
+          sudo gem install --no-document fpm
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip wheel setuptools
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable with PyInstaller
+        run: |
+          pyinstaller --noconfirm --onedir \
+            --name $APP_NAME \
+            --add-data "libbit4xpki.so:." \
+            --add-data "libbit4xpki.so.conf:." \
+            --add-data "libbit4xpki.so.rc:libbit4xpki.so.rc" \
+            --add-data "NotoSans-Regular.ttf:." \
+            --add-data "LICENSE:." \
+            --add-data "p7m.py:." \
+            --add-data "pades.py:." \
+            Main.py
+
+      - name: Create launcher script
+        run: |
+          echo '#!/bin/bash' > dist/${APP_NAME}_launcher.sh
+          echo 'DIR="$(dirname "$(realpath "$0")")"' >> dist/${APP_NAME}_launcher.sh
+          echo '"$DIR/'"$APP_NAME"'/Main"' >> dist/${APP_NAME}_launcher.sh
+          chmod +x dist/${APP_NAME}_launcher.sh
+
+      - name: Prepare package directory
+        run: |
+          mkdir -p package/usr/local/bin
+          mkdir -p package/opt/${APP_NAME}
+          cp -r dist/${APP_NAME}/* package/opt/${APP_NAME}/
+          cp dist/${APP_NAME}_launcher.sh package/usr/local/bin/${APP_NAME}
+
+      - name: Build DEB and RPM packages with fpm
+        run: |
+          fpm -s dir -t deb \
+            -n $APP_NAME \
+            -v $VERSION \
+            --license "$LICENSE" \
+            --maintainer "$MAINTAINER" \
+            --description "$DESCRIPTION" \
+            --url "https://github.com/${{ github.repository }}" \
+            -C package \
+            .
+
+          fpm -s dir -t rpm \
+            -n $APP_NAME \
+            -v $VERSION \
+            --license "$LICENSE" \
+            --maintainer "$MAINTAINER" \
+            --description "$DESCRIPTION" \
+            --url "https://github.com/${{ github.repository }}" \
+            -C package \
+            .
+
+      - name: Package tarball
+        run: |
+          cd dist
+          tar -czf ${APP_NAME}-${{ matrix.os }}.tar.gz ${APP_NAME} ${APP_NAME}_launcher.sh
+          mv ${APP_NAME}-${{ matrix.os }}.tar.gz ../
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-artifacts
+          path: |
+            *.deb
+            *.rpm
+            ${APP_NAME}-${{ matrix.os }}.tar.gz
