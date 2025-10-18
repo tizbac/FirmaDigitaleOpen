@@ -80,7 +80,7 @@ class PDFPreview(tk.Frame):
 
     def load_pdf(self, path, page_index=0, max_width=900):
         if not os.path.exists(path):
-            messagebox.showerror("File not found", f"PDF not found: {path}")
+            messagebox.showerror("File non trovato", f"PDF non trovato: {path}")
             return
         self._doc = fitz.open(path)
         self.page_index = min(max(0, page_index), len(self._doc)-1)
@@ -180,7 +180,7 @@ class PDFPreview(tk.Frame):
 class SignerApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Document Signer - PAdES / P7M")
+        self.title("Firma digitale OpenSource - Tiziano Bacocco")
         self.geometry("1100x800")
 
         self.notebook = ttk.Notebook(self)
@@ -194,7 +194,7 @@ class SignerApp(tk.Tk):
     # -------------------------
     def _create_pades_tab(self):
         frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text="Sign PDF (PAdES)")
+        self.notebook.add(frame, text="Firma PDF (PADES)")
 
         left = ttk.Frame(frame, width=420)
         left.pack(side="left", fill="y", padx=8, pady=8)
@@ -203,7 +203,7 @@ class SignerApp(tk.Tk):
 
         # Left controls
         # Input PDF
-        ttk.Label(left, text="Input PDF:").pack(anchor="w", pady=(4,0))
+        ttk.Label(left, text="PDF da Firmare:").pack(anchor="w", pady=(4,0))
         self.pdf_input_var = tk.StringVar()
         in_frame = ttk.Frame(left)
         in_frame.pack(fill="x")
@@ -211,26 +211,18 @@ class SignerApp(tk.Tk):
         ttk.Button(in_frame, text="Browse", command=self._browse_pdf).pack(side="left", padx=4)
 
         # Output
-        ttk.Label(left, text="Output PDF:").pack(anchor="w", pady=(8,0))
+        ttk.Label(left, text="Nome file firmato:").pack(anchor="w", pady=(8,0))
         self.pdf_output_var = tk.StringVar()
         out_frame = ttk.Frame(left)
         out_frame.pack(fill="x")
         ttk.Entry(out_frame, textvariable=self.pdf_output_var, width=40).pack(side="left", fill="x", expand=True)
         ttk.Button(out_frame, text="Save as...", command=self._save_pdf_as).pack(side="left", padx=4)
 
-        # PKCS#11 and token/cert/pin
-        ttk.Label(left, text="PKCS#11 library:").pack(anchor="w", pady=(8,0))
+
         self.pkcs11_var = tk.StringVar()
         self.pkcs11_var.set("./libbit4xpki.so")
-        lib_frame = ttk.Frame(left)
-        lib_frame.pack(fill="x")
-        ttk.Entry(lib_frame, textvariable=self.pkcs11_var, width=40).pack(side="left", fill="x", expand=True)
-        ttk.Button(lib_frame, text="Browse", command=self._browse_pkcs11).pack(side="left", padx=4)
 
-        ttk.Label(left, text="Token / Slot label:").pack(anchor="w", pady=(8,0))
         self.token_var = tk.StringVar()
-        ttk.Entry(left, textvariable=self.token_var).pack(fill="x")
-
         #ttk.Label(left, text="Cert label:").pack(anchor="w", pady=(8,0))
         self.cert_var = tk.StringVar()
         #ttk.Entry(left, textvariable=self.cert_var).pack(fill="x")
@@ -242,23 +234,23 @@ class SignerApp(tk.Tk):
         # Visible signature options
         ttk.Separator(left).pack(fill="x", pady=8)
         self.visible_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(left, text="Visible signature (click-and-drag to place)", variable=self.visible_var).pack(anchor="w")
-        ttk.Label(left, text="Visible text prefix:").pack(anchor="w", pady=(8,0))
+        ttk.Checkbutton(left, text="Firma Visible (Disegna sul documento)", variable=self.visible_var).pack(anchor="w")
+        ttk.Label(left, text="Prefisso firma digitale:").pack(anchor="w", pady=(8,0))
         self.visible_text_var = tk.StringVar(value="Firmato digitalmente da ")
         ttk.Entry(left, textvariable=self.visible_text_var).pack(fill="x")
 
-        ttk.Label(left, text="Signature page index (0-based):").pack(anchor="w", pady=(8,0))
+        ttk.Label(left, text="Pagina firma (parte da 0):").pack(anchor="w", pady=(8,0))
         self.page_var = tk.IntVar(value=0)
         ttk.Spinbox(left, from_=0, to=99, textvariable=self.page_var).pack(fill="x")
 
         # Sign button
-        ttk.Button(left, text="Sign PDF (PAdES)", command=self._do_sign_pdf).pack(fill="x", pady=12)
+        ttk.Button(left, text="Firma PDF", command=self._do_sign_pdf).pack(fill="x", pady=12)
 
         # Right: PDF preview
         self.preview = PDFPreview(right, on_box_changed=self._on_pdf_box_changed)
         self.preview.pack(fill="both", expand=True)
         # small status
-        self.box_label_var = tk.StringVar(value="No box selected")
+        self.box_label_var = tk.StringVar(value="Nessun riquadro firma selezionato")
         ttk.Label(right, textvariable=self.box_label_var).pack(anchor="w", pady=4)
 
     def _browse_pdf(self):
@@ -276,7 +268,7 @@ class SignerApp(tk.Tk):
             try:
                 self.preview.load_pdf(path, page_index=page_idx)
             except Exception as e:
-                messagebox.showerror("Preview error", f"Could not render PDF: {e}")
+                messagebox.showerror("Errore anteprima", f"Could not render PDF: {e}")
 
     def _save_pdf_as(self):
         path = ask_save_file(defaultextension=".pdf", filetypes=[("PDF files","*.pdf")])
@@ -380,13 +372,13 @@ class SignerApp(tk.Tk):
     # -------------------------
     def _create_p7m_tab(self):
         frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text="Sign File (P7M / CAdES)")
+        self.notebook.add(frame, text="Firma File (P7M / CAdES)")
 
         container = ttk.Frame(frame, padding=12)
         container.pack(fill="both", expand=True)
 
         # Input file
-        ttk.Label(container, text="Input file:").grid(row=0, column=0, sticky="w")
+        ttk.Label(container, text="File da firmare:").grid(row=0, column=0, sticky="w")
         self.file_input_var = tk.StringVar()
         ttk.Entry(container, textvariable=self.file_input_var, width=60).grid(row=0, column=1, sticky="we")
         ttk.Button(container, text="Browse", command=self._browse_file).grid(row=0, column=2, padx=4)
@@ -397,33 +389,22 @@ class SignerApp(tk.Tk):
         ttk.Entry(container, textvariable=self.file_output_var, width=60).grid(row=1, column=1, sticky="we", pady=(6,0))
         ttk.Button(container, text="Save as...", command=self._save_file_as).grid(row=1, column=2, padx=4, pady=(6,0))
 
-        # PKCS#11 lib
-        ttk.Label(container, text="PKCS#11 library:").grid(row=2, column=0, sticky="w", pady=(8,0))
+
         self.p7m_pkcs11_var = tk.StringVar()
         self.p7m_pkcs11_var.set("./libbit4xpki.so")
-        ttk.Entry(container, textvariable=self.p7m_pkcs11_var, width=60).grid(row=2, column=1, sticky="we", pady=(8,0))
-        ttk.Button(container, text="Browse", command=self._browse_p7m_pkcs11).grid(row=2, column=2, padx=4, pady=(8,0))
-
-        # Slot index or token label (we'll show both)
-        ttk.Label(container, text="Slot index (int):").grid(row=3, column=0, sticky="w", pady=(8,0))
         self.slot_index_var = tk.IntVar(value=0)
-        ttk.Entry(container, textvariable=self.slot_index_var, width=12).grid(row=3, column=1, sticky="w", pady=(8,0))
 
-        ttk.Label(container, text="Key label:").grid(row=4, column=0, sticky="w", pady=(8,0))
         self.key_label_var = tk.StringVar()
-        ttk.Entry(container, textvariable=self.key_label_var, width=60).grid(row=4, column=1, sticky="we", pady=(8,0))
 
-        ttk.Label(container, text="Cert DER path (optional):").grid(row=5, column=0, sticky="w", pady=(8,0))
+       
         self.cert_der_var = tk.StringVar()
-        ttk.Entry(container, textvariable=self.cert_der_var, width=60).grid(row=5, column=1, sticky="we", pady=(8,0))
-        ttk.Button(container, text="Browse", command=self._browse_cert_der).grid(row=5, column=2, padx=4, pady=(8,0))
 
         ttk.Label(container, text="PIN:").grid(row=6, column=0, sticky="w", pady=(8,0))
         self.p7m_pin_var = tk.StringVar()
         ttk.Entry(container, textvariable=self.p7m_pin_var, show="*").grid(row=6, column=1, sticky="w", pady=(8,0))
 
         # Sign button
-        ttk.Button(container, text="Sign File (P7M)", command=self._do_sign_p7m).grid(row=7, column=0, columnspan=3, pady=16)
+        ttk.Button(container, text="Firma File (P7M)", command=self._do_sign_p7m).grid(row=7, column=0, columnspan=3, pady=16)
 
         # Make grid expand
         container.columnconfigure(1, weight=1)
